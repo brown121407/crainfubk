@@ -7,12 +7,13 @@
 
 typedef unsigned char byte;
 
-char* program;
-int program_len;
+char* program = NULL;
+long program_len;
 byte tape[TAPE_LENGTH];
 int tape_pos = 0;
+FILE* file = NULL;
 
-int run(int program_pos) {
+int run(long program_pos) {
 	while (program_pos < program_len) {
 		switch (program[program_pos]) {
 			case '+':
@@ -49,7 +50,7 @@ int run(int program_pos) {
 				break;
 			}
 			case '[': {
-				int new_pos = -1;
+				long new_pos = -1;
 				while (tape[tape_pos]) {
 					new_pos = run(program_pos + 1);
 				}
@@ -73,6 +74,10 @@ int run(int program_pos) {
 			}
 			case ']':
 				return program_pos;
+		    case '\n':
+		    case '\t':
+		    case ' ':
+		        break;
 			default:
 				printf("ERROR: Unrecognized character: %c", program[tape_pos]);
 				free(program);
@@ -85,16 +90,41 @@ int run(int program_pos) {
 }
 
 int main(int argc, char** argv) {
-	if (argc != 2) {
-		printf("Usage: cranfubk <brainfuck code>");
+	if (argc != 2 && argc != 3) {
+		printf("Usage:\ncrainfubk <file>\ncrainfubk exec <brainfuck code>\n");
 		return 1;
 	}
 
-	program_len = strlen(argv[1]);
-	program = (char*)malloc(program_len * (sizeof(char)));
-	strcpy(program, argv[1]);
+	if (argc == 3) {
+		if (strcmp(argv[1], "exec")) {
+			printf("Usage:\ncrainfubk <file>\ncrainfubk exec <brainfuck code>\n");
+			return 1;
+		}
 
-	run(0);
+		program_len = strlen(argv[2]);
+		program = (char*)malloc(program_len * (sizeof(char)));
+		strcpy(program, argv[2]);
+
+		run(0);
+	} else {
+		file = fopen(argv[1], "r");
+
+		if (file == NULL) {
+			printf("ERROR: Could not read file '%s'\n", argv[1]);
+		}
+
+		fseek(file, 0, SEEK_END);
+		program_len = ftell(file);
+		fseek(file, 0, SEEK_SET);
+
+		program = (char*)malloc(program_len);
+		fread(program, sizeof(char), program_len, file);
+
+		fclose(file);
+
+		run(0);
+	}
+
 
 	free(program);
 }
